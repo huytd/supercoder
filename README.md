@@ -83,20 +83,20 @@ For development purposes, follow these instructions to set up your environment:
 ### Setup
 
 1. Clone the repository:
-   ```bash
-git clone <repository-url>
-cd SuperCoder
-   ```
+    ```bash
+    git clone <repository-url>
+    cd SuperCoder
+    ```
 
 2. Build the project using SBT:
-   ```bash
-sbt compile
-   ```
+    ```bash
+    sbt compile
+    ```
 
 3. Run tests to ensure everything is working as expected:
-   ```bash
-sbt test
-   ```
+    ```bash
+    sbt test
+    ```
 
 ## Contributing
 
