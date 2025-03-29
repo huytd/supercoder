@@ -1,12 +1,10 @@
 package com.supercoder.ui
 
+import com.supercoder.base.BaseChatAgent
 import com.supercoder.lib.Console
 import com.supercoder.lib.Console.{blue, bold, green, underline}
-
 import org.jline.reader.{LineReader, LineReaderBuilder, Reference, Widget}
-import org.jline.terminal.Terminal
-import org.jline.terminal.TerminalBuilder
-import com.supercoder.base.BaseChatAgent
+import org.jline.terminal.{Terminal, TerminalBuilder}
 
 object TerminalChat {
 

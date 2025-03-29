@@ -1,25 +1,17 @@
 package com.supercoder.tools
 
-import com.openai.models.{FunctionDefinition, FunctionParameters}
+import com.openai.models.FunctionDefinition
 import com.supercoder.base.Tool
 import com.supercoder.lib.Console.green
 
-import java.util
 import scala.sys.process.*
-import com.openai.core.JsonValue
 
 object ProjectStructureTool extends Tool {
 
   override val functionDefinition = FunctionDefinition
     .builder()
     .name("project-structure")
-    .description("Get the structure of the current project")
-    .parameters(
-      FunctionParameters.builder()
-        .putAdditionalProperty("type", JsonValue.from("object"))
-        .putAdditionalProperty("properties", JsonValue.from(util.Map.of()))
-      .build()
-    )
+    .description("Get the structure of the current project. Arguments: 'null'")
     .build()
 
   override def execute(arguments: String): String = {

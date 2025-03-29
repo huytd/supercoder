@@ -1,7 +1,6 @@
 package com.supercoder.tools
 
-import com.openai.core.JsonValue
-import com.openai.models.{FunctionDefinition, FunctionParameters}
+import com.openai.models.FunctionDefinition
 import com.supercoder.base.Tool
 import com.supercoder.lib.Console.green
 import io.circe.*
@@ -9,8 +8,6 @@ import io.circe.generic.auto.*
 import io.circe.parser.*
 
 import java.io.{File, PrintWriter}
-import java.nio.file.{Files, Paths}
-import java.util
 
 case class CodeEditToolArguments(filepath: String, content: String)
 
@@ -20,28 +17,7 @@ object CodeEditTool extends Tool {
     .builder()
     .name("code-edit")
     .description(
-      "Edit a code file in the repository. Provide the file path and the new content for the file."
-    )
-    .parameters(
-      FunctionParameters
-        .builder()
-        .putAdditionalProperty("type", JsonValue.from("object"))
-        .putAdditionalProperty(
-          "properties",
-          JsonValue.from(
-            util.Map.of(
-              "filepath",
-              util.Map.of("type", "string"),
-              "content",
-              util.Map.of("type", "string")
-            )
-          )
-        )
-        .putAdditionalProperty(
-          "required",
-          JsonValue.from(util.List.of("filepath", "content"))
-        )
-        .build()
+      "Edit a code file in the repository. Provide the file path and the new content for the file. Arguments: {\"filepath\": \"<file-path>\", \"content\": \"<new-content>\"}"
     )
     .build()
 

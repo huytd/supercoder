@@ -1,14 +1,12 @@
 package com.supercoder.tools
 
-import com.openai.core.JsonValue
-import com.openai.models.{FunctionDefinition, FunctionParameters}
+import com.openai.models.FunctionDefinition
 import com.supercoder.base.Tool
 import com.supercoder.lib.Console.green
 import io.circe.*
 import io.circe.generic.auto.*
 import io.circe.parser.*
 
-import java.util
 import scala.sys.process.*
 
 case class CodeSearchToolArguments(query: String)
@@ -19,17 +17,7 @@ object CodeSearchTool extends Tool {
     .builder()
     .name("code-search")
     .description(
-      "Search for code in a given repository. The query parameter should be a regular expression."
-    )
-    .parameters(
-      FunctionParameters
-        .builder()
-        .putAdditionalProperty("type", JsonValue.from("object"))
-        .putAdditionalProperty(
-          "properties",
-          JsonValue.from(util.Map.of("query", util.Map.of("type", "string")))
-        )
-        .build()
+      "Search for code in a given repository. The query parameter should be a regular expression. Arguments: {\"query\": \"<search-query>\"}"
     )
     .build()
 

@@ -1,14 +1,12 @@
 package com.supercoder.tools
 
-import com.openai.core.JsonValue
-import com.openai.models.{FunctionDefinition, FunctionParameters}
+import com.openai.models.FunctionDefinition
 import com.supercoder.base.Tool
 import com.supercoder.lib.Console.green
 import io.circe.*
 import io.circe.generic.auto.*
 import io.circe.parser.*
 
-import java.util
 import scala.sys.process.*
 
 case class FileReadToolArguments(fileName: String)
@@ -19,17 +17,7 @@ object FileReadTool extends Tool {
     .builder()
     .name("file-read")
     .description(
-      "Read a file to understand its content. Use this tool to read a file and understand its content."
-    )
-    .parameters(
-      FunctionParameters
-        .builder()
-        .putAdditionalProperty("type", JsonValue.from("object"))
-        .putAdditionalProperty(
-          "properties",
-          JsonValue.from(util.Map.of("fileName", util.Map.of("type", "string")))
-        )
-        .build()
+      "Read a file to understand its content. Use this tool to read a file and understand its content. Arguments: {\"fileName\": \"<file-path-and-name>\"}"
     )
     .build()
 
