@@ -2,7 +2,7 @@ package com.supercoder.config
 
 import scopt.OParser
 
-case class Config(useCursorRules: Boolean = false, model: String = "")
+case class Config(useCursorRules: Boolean = false, model: String = "", isDebugMode: Boolean = false)
 
 object ArgsParser {
   def parse(args: Array[String]): Option[Config] = {
@@ -17,6 +17,9 @@ object ArgsParser {
         opt[String]('m', "model")
           .action((x, c) => c.copy(model = x))
           .text("model to use for the agent"),
+        opt[String]('d', "debug")
+          .action((x, c) => c.copy(isDebugMode = (x == "true")))
+          .text("enable debug mode"),
         help("help").text("prints this usage text")
       )
     }

@@ -3,6 +3,8 @@ package com.supercoder.base
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.http.Headers
 import com.openai.models.*
+import com.supercoder.Main
+import com.supercoder.Main.AppConfig
 import com.supercoder.lib.Console.{blue, red}
 import io.circe.*
 import io.circe.generic.auto.*
@@ -161,41 +163,38 @@ abstract class BaseChatAgent(prompt: String, model: String = AgentConfig.OpenAIM
         if (delta.content().isPresent) {
           val content = delta.content().get()
           wordBuffer.append(content)
-          // Append raw content immediately to the main builder for history/parsing
           currentMessageBuilder.append(content)
 
-          // Process wordBuffer for printing
           val toolStart = "<@TOOL>"
           val toolEnd = "</@TOOL>"
           val toolResultStart = "<@TOOL-RESULT>"
           val toolResultEnd = "</@TOOL-RESULT>"
 
-          // Store which end marker we are looking for when isInToolTag is true
           var currentToolTagEndMarker: Option[String] = None
 
-          var processedSomething = true // Flag to loop if buffer was modified
+          var processedSomething = true
           while (processedSomething && wordBuffer.nonEmpty) {
-            processedSomething = false // Assume no processing needed unless tag/word found
+            processedSomething = false
 
             if (isInToolTag) {
-              val endMarker = currentToolTagEndMarker.getOrElse(toolEnd) // Use stored marker
+              val endMarker = currentToolTagEndMarker.getOrElse(toolEnd)
               val endTagIndex = wordBuffer.indexOf(endMarker)
               if (endTagIndex != -1) {
-                // End tag found in buffer
                 val contentToConsume = wordBuffer.substring(0, endTagIndex + endMarker.length)
-                // print(red(contentToConsume)) // Omit printing
+                if (AppConfig.isDebugMode) {
+                  print(red(contentToConsume))
+                }
                 wordBuffer.delete(0, contentToConsume.length)
                 isInToolTag = false
-                currentToolTagEndMarker = None // Clear expected end marker
-                processedSomething = true // Check remaining buffer for normal text
+                currentToolTagEndMarker = None
+                processedSomething = true
               } else {
-                // End tag not yet in buffer. Consume the whole buffer internally, but don't print.
-                // print(red(wordBuffer.toString())) // Omit printing
+                if (AppConfig.isDebugMode) {
+                  print(red(wordBuffer.toString()))
+                }
                 wordBuffer.clear()
-                // Wait for the next chunk
               }
-            } else { // Not in tool tag
-              // Find the *earliest* start tag
+            } else {
               val toolStartIndex = wordBuffer.indexOf(toolStart)
               val toolResultStartIndex = wordBuffer.indexOf(toolResultStart)
 
@@ -203,7 +202,6 @@ abstract class BaseChatAgent(prompt: String, model: String = AgentConfig.OpenAIM
               var startMarker = ""
               var expectedEndMarker = ""
 
-              // Determine which tag starts first, if any
               if (toolStartIndex != -1 && (toolResultStartIndex == -1 || toolStartIndex < toolResultStartIndex)) {
                   startTagIndex = toolStartIndex
                   startMarker = toolStart
@@ -215,31 +213,27 @@ abstract class BaseChatAgent(prompt: String, model: String = AgentConfig.OpenAIM
               }
 
               if (startTagIndex != -1) {
-                // A start tag was found
-                // Process content *before* the tag
                 val beforeTag = wordBuffer.substring(0, startTagIndex)
                 if (beforeTag.nonEmpty) {
                   val (words, remaining) = processWords(beforeTag)
-                  // Only print if words were actually extracted
                   if (words.nonEmpty) {
                     words.foreach { case (word, ws) => print(blue(word)); print(ws) }
-                    // Delete only the blue part that was fully processed (words + whitespace)
                     wordBuffer.delete(0, beforeTag.length - remaining.length)
-                    processedSomething = true // Buffer content changed
+                    processedSomething = true
                   }
                 }
 
-                // Print the start tag itself red, but only if it's now at the start of the buffer
                 if (wordBuffer.indexOf(startMarker) == 0) {
-                    // print(red(startMarker)) // Omit printing
-                    wordBuffer.delete(0, startMarker.length)
-                    isInToolTag = true
-                    currentToolTagEndMarker = Some(expectedEndMarker) // Set expected end marker
-                    processedSomething = true // Buffer content changed, loop again
+                  if (AppConfig.isDebugMode) {
+                    print(red(startMarker))
+                  }
+                  wordBuffer.delete(0, startMarker.length)
+                  isInToolTag = true
+                  currentToolTagEndMarker = Some(expectedEndMarker)
+                  processedSomething = true
                 }
 
               } else {
-                // No start tag found in the buffer, process as regular content
                 val (words, remaining) = processWords(wordBuffer.toString())
                 if (words.nonEmpty) { // Only process if complete words were found
                     words.foreach { case (word, ws) => print(blue(word)); print(ws) }
@@ -247,18 +241,18 @@ abstract class BaseChatAgent(prompt: String, model: String = AgentConfig.OpenAIM
                     wordBuffer.delete(0, processedLength)
                     processedSomething = true // Buffer content changed
                 }
-                // If only `remaining` part is left, wait for the next chunk
               }
             }
-          } // End while(processedSomething && wordBuffer.nonEmpty)
+          }
         }
-      } // End while(it.hasNext)
+      }
 
       // Print out the rest of the word buffer if it has any content
       if (wordBuffer.nonEmpty) {
         if (isInToolTag) {
-          // Should ideally not happen if tags are well-formed, but print red if it does
-          print(red(wordBuffer.toString()))
+          if (AppConfig.isDebugMode) {
+            print(red(wordBuffer.toString()))
+          }
         } else {
           print(blue(wordBuffer.toString()))
         }
