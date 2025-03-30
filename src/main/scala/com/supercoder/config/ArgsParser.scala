@@ -2,7 +2,7 @@ package com.supercoder.config
 
 import scopt.OParser
 
-case class Config(useCursorRules: Boolean = false)
+case class Config(useCursorRules: Boolean = false, model: String = "")
 
 object ArgsParser {
   def parse(args: Array[String]): Option[Config] = {
@@ -14,6 +14,9 @@ object ArgsParser {
         opt[String]('c', "use-cursor-rules")
           .action((x, c) => c.copy(useCursorRules = (x == "true")))
           .text("use Cursor rules for the agent"),
+        opt[String]('m', "model")
+          .action((x, c) => c.copy(model = x))
+          .text("model to use for the agent"),
         help("help").text("prints this usage text")
       )
     }

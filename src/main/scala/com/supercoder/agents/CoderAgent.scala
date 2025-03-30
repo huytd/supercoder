@@ -21,8 +21,8 @@ The discussion is about the code of the current project/folder. Always use the r
 project if you are unsure before giving answer.
 """
 
-class CoderAgent(additionalPrompt: String = "")
-    extends BaseChatAgent(coderAgentPrompt + additionalPrompt) {
+class CoderAgent(additionalPrompt: String = "", model: String = "")
+    extends BaseChatAgent(coderAgentPrompt + additionalPrompt, model) {
 
   final val availableTools = List(
     CodeSearchTool,

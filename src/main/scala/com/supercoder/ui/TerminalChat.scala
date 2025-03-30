@@ -14,12 +14,13 @@ object TerminalChat {
     print("\u001b[H")
   }
 
-  def printHeader(): Unit = {
+  def printHeader(agent: BaseChatAgent): Unit = {
     clearScreen()
     println(blue("█▀ █░█ █▀█ █▀▀ █▀█ █▀▀ █▀█ █▀▄ █▀▀ █▀█"))
     println(blue("▄█ █▄█ █▀▀ ██▄ █▀▄ █▄▄ █▄█ █▄▀ ██▄ █▀▄"))
     println(blue(s"v${BuildInfo.version}"))
     println()
+    println(blue(s"Model: ${agent.selectedModel}"))
     println(blue("Type '/help' for available commands.\n"))
   }
 
@@ -34,7 +35,7 @@ object TerminalChat {
   }
 
   def run(agent: BaseChatAgent): Unit = {
-    printHeader()
+    printHeader(agent)
     val terminal: Terminal = TerminalBuilder.builder().system(true).build()
     val reader: LineReader = LineReaderBuilder.builder().terminal(terminal).build()
 
@@ -69,7 +70,7 @@ object TerminalChat {
             case "/help" => showHelp()
             case "/clear" =>
               clearScreen()
-              printHeader()
+              printHeader(agent)
             case "exit" | "bye" =>
               println(blue("\nChat session terminated. Goodbye!"))
               keepRunning = false

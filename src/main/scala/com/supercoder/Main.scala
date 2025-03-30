@@ -10,7 +10,8 @@ object Main {
     ArgsParser.parse(args) match {
       case Some(config) =>
         val additionalPrompt = if config.useCursorRules then CursorRulesLoader.loadRules() else ""
-        val agent = new CoderAgent(additionalPrompt)
+        val modelName = config.model
+        val agent = new CoderAgent(additionalPrompt, modelName)
         TerminalChat.run(agent)
       case None =>
         // invalid options, usage error message is already printed by scopt
