@@ -34,7 +34,7 @@ For example:
 {"name": "project-structure", "arguments": ""}
 </@TOOL>
 
-The client will response with <@TOOL-RESULT>[content]</@TOOL-RESULT> XML tags to provide the result of the function call.
+The client will response with <@TOOL_RESULT>[content]</@TOOL_RESULT> XML tags to provide the result of the function call.
 Use it to continue the conversation with the user.
 
 # Safety
@@ -152,94 +152,168 @@ abstract class BaseChatAgent(prompt: String, model: String = AgentConfig.OpenAIM
       streamingStarted = true
       val wordBuffer = new StringBuilder()
       var isInToolTag = false
-      var currentToolTagEndMarker: Option[String] = None // Keep track of the expected closing tag
+      var currentToolTagEndMarker: Option[String] = None
+      val toolStart = "<@TOOL>"
+      val toolEnd = "</@TOOL>"
+      val toolResultStart = "<@TOOL_RESULT>"
+      val toolResultEnd = "</@TOOL_RESULT>"
 
       while(it.hasNext && !cancelStreaming) {
         val chunk = it.next()
         val delta = chunk.choices.getFirst.delta
 
         if (delta.content().isPresent) {
-          val content = delta.content().get()
-          wordBuffer.append(content)
-
-          val toolStart = "<@TOOL>"
-          val toolEnd = "</@TOOL>"
-          val toolResultStart = "<@TOOL-RESULT>"
-          val toolResultEnd = "</@TOOL-RESULT>"
+          wordBuffer.append(delta.content().get())
 
           var continueProcessingBuffer = true
-          while (continueProcessingBuffer && wordBuffer.nonEmpty) {
-            continueProcessingBuffer = false // Assume loop stops unless something is processed
+          while (continueProcessingBuffer) {
+            continueProcessingBuffer = false // Assume we can't process further unless proven otherwise
 
             if (isInToolTag) {
-              val endMarker = currentToolTagEndMarker.getOrElse(toolEnd) // Default, should be set
-              val endTagIndex = wordBuffer.indexOf(endMarker)
-              if (endTagIndex != -1) {
-                // Found the end tag for the current tool block
-                val tagContentWithMarker = wordBuffer.substring(0, endTagIndex + endMarker.length)
-                if (AppConfig.isDebugMode) print(red(tagContentWithMarker)) else print("") // Don't print tool tags
-                currentMessageBuilder.append(tagContentWithMarker) // Add to history
-                wordBuffer.delete(0, tagContentWithMarker.length)
-                isInToolTag = false
-                currentToolTagEndMarker = None
-                continueProcessingBuffer = true // Indicate something was processed
-              } else {
-                // End tag not yet in buffer, wait for more data
-                // No partial printing for tool tags
+              // Currently inside a tool tag, looking for the end marker
+              currentToolTagEndMarker.foreach { endMarker =>
+                val endMarkerIndex = wordBuffer.indexOf(endMarker)
+                if (endMarkerIndex != -1) {
+                  // Found the end marker
+                  val contentBeforeEnd = wordBuffer.substring(0, endMarkerIndex)
+                  val tagContentWithMarker = contentBeforeEnd + endMarker
+
+                  if (contentBeforeEnd.nonEmpty) {
+                    if (AppConfig.isDebugMode) print(red(contentBeforeEnd)) // Print content if debug
+                    currentMessageBuilder.append(contentBeforeEnd)
+                  }
+                  if (AppConfig.isDebugMode) print(red(endMarker)) // Print end marker if debug
+                  currentMessageBuilder.append(endMarker)
+
+                  wordBuffer.delete(0, tagContentWithMarker.length)
+                  isInToolTag = false
+                  currentToolTagEndMarker = None
+                  continueProcessingBuffer = true // Re-evaluate buffer from the start
+                } else {
+                  // End marker not found, process safe portion if possible
+                  val safeLength = wordBuffer.length - endMarker.length + 1
+                  if (safeLength > 0) {
+                    val safeContent = wordBuffer.substring(0, safeLength)
+                    if (AppConfig.isDebugMode) print(red(safeContent)) // Print safe content if debug
+                    currentMessageBuilder.append(safeContent)
+                    wordBuffer.delete(0, safeLength)
+                    // No continueProcessingBuffer = true, need more data for the end tag
+                  }
+                }
               }
             } else {
-              // Not in tool tag: print plain text
+              // Not inside a tool tag, looking for a start marker
               val toolStartIndex = wordBuffer.indexOf(toolStart)
               val toolResultStartIndex = wordBuffer.indexOf(toolResultStart)
-              val nextTagIndex =
-                if (toolStartIndex == -1 && toolResultStartIndex == -1) -1
-                else if (toolStartIndex == -1) toolResultStartIndex
-                else if (toolResultStartIndex == -1) toolStartIndex
-                else Math.min(toolStartIndex, toolResultStartIndex)
 
-              if (nextTagIndex != -1) {
-                // Print up to the next tag
-                val beforeTag = wordBuffer.substring(0, nextTagIndex)
-                print(blue(beforeTag))
-                currentMessageBuilder.append(beforeTag)
-                wordBuffer.delete(0, nextTagIndex)
-                continueProcessingBuffer = true
-                // Now handle the tag
-                if (wordBuffer.startsWith(toolStart)) {
-                  if (AppConfig.isDebugMode) print(red(toolStart)) else print("")
-                  currentMessageBuilder.append(toolStart)
-                  wordBuffer.delete(0, toolStart.length)
-                  isInToolTag = true
-                  currentToolTagEndMarker = Some(toolEnd)
-                  continueProcessingBuffer = true
-                } else if (wordBuffer.startsWith(toolResultStart)) {
-                  if (AppConfig.isDebugMode) print(red(toolResultStart)) else print("")
-                  currentMessageBuilder.append(toolResultStart)
-                  wordBuffer.delete(0, toolResultStart.length)
-                  isInToolTag = true
-                  currentToolTagEndMarker = Some(toolResultEnd)
-                  continueProcessingBuffer = true
+              // Find the earliest start tag index
+              val firstTagIndex = (toolStartIndex, toolResultStartIndex) match {
+                case (ts, tr) if ts >= 0 && tr >= 0 => Math.min(ts, tr)
+                case (ts, -1) if ts >= 0 => ts
+                case (-1, tr) if tr >= 0 => tr
+                case _ => -1
+              }
+
+              if (firstTagIndex != -1) {
+                // Found a start tag
+                val textBeforeTag = wordBuffer.substring(0, firstTagIndex)
+                if (textBeforeTag.nonEmpty) {
+                  print(blue(textBeforeTag))
+                  currentMessageBuilder.append(textBeforeTag)
                 }
+
+                // Determine which tag was found and process it
+                val (startTag, endMarker) = if (firstTagIndex == toolStartIndex) {
+                  (toolStart, toolEnd)
+                } else {
+                  (toolResultStart, toolResultEnd)
+                }
+
+                if (AppConfig.isDebugMode) print(red(startTag))
+                currentMessageBuilder.append(startTag)
+
+                wordBuffer.delete(0, firstTagIndex + startTag.length)
+                isInToolTag = true
+                currentToolTagEndMarker = Some(endMarker)
+                continueProcessingBuffer = true // Re-evaluate buffer from the start
               } else {
-                // No tags, print everything
-                print(blue(wordBuffer.toString()))
-                currentMessageBuilder.append(wordBuffer.toString())
-                wordBuffer.clear()
+                // No start tag found, process safe portion
+                val maxTagLen = Math.max(toolStart.length, toolResultStart.length)
+                val safeLength = wordBuffer.length - maxTagLen + 1
+                if (safeLength > 0) {
+                  val safeContent = wordBuffer.substring(0, safeLength)
+                  print(blue(safeContent))
+                  currentMessageBuilder.append(safeContent)
+                  wordBuffer.delete(0, safeLength)
+                  // No continueProcessingBuffer = true, need more data for a potential tag start
+                }
               }
             }
-          } // End of inner buffer processing loop
+          } // End while(continueProcessingBuffer)
         } // End if delta.content().isPresent
       } // End of main while(it.hasNext) loop
 
       // After the loop, process any remaining content in the buffer
-      if (wordBuffer.nonEmpty) {
+      // Run the same logic, but process fully if tag not found
+      var continueProcessingBuffer = true
+      while (continueProcessingBuffer && wordBuffer.nonEmpty) {
+        continueProcessingBuffer = false // Assume we stop unless a full tag is processed
         if (isInToolTag) {
-          if(AppConfig.isDebugMode) print(red(wordBuffer.toString())) else print(blue(wordBuffer.toString()))
+          currentToolTagEndMarker.foreach { endMarker =>
+            val endMarkerIndex = wordBuffer.indexOf(endMarker)
+            if (endMarkerIndex != -1) {
+              val contentBeforeEnd = wordBuffer.substring(0, endMarkerIndex)
+              val tagContentWithMarker = contentBeforeEnd + endMarker
+              if (contentBeforeEnd.nonEmpty) {
+                if (AppConfig.isDebugMode) print(red(contentBeforeEnd))
+                currentMessageBuilder.append(contentBeforeEnd)
+              }
+              if (AppConfig.isDebugMode) print(red(endMarker))
+              currentMessageBuilder.append(endMarker)
+              wordBuffer.delete(0, tagContentWithMarker.length)
+              isInToolTag = false
+              currentToolTagEndMarker = None
+              continueProcessingBuffer = true // Processed a tag, might be more
+            } else {
+              // End marker not found, process the rest (end of stream)
+              if (AppConfig.isDebugMode) print(red(wordBuffer.toString))
+              currentMessageBuilder.append(wordBuffer.toString)
+              wordBuffer.clear()
+            }
+          }
         } else {
-          print(blue(wordBuffer.toString()))
+          val toolStartIndex = wordBuffer.indexOf(toolStart)
+          val toolResultStartIndex = wordBuffer.indexOf(toolResultStart)
+          val firstTagIndex = (toolStartIndex, toolResultStartIndex) match {
+            case (ts, tr) if ts >= 0 && tr >= 0 => Math.min(ts, tr)
+            case (ts, -1) if ts >= 0 => ts
+            case (-1, tr) if tr >= 0 => tr
+            case _ => -1
+          }
+          if (firstTagIndex != -1) {
+            val textBeforeTag = wordBuffer.substring(0, firstTagIndex)
+            if (textBeforeTag.nonEmpty) {
+              print(blue(textBeforeTag))
+              currentMessageBuilder.append(textBeforeTag)
+            }
+            val (startTag, endMarker) = if (firstTagIndex == toolStartIndex) {
+              (toolStart, toolEnd)
+            } else {
+              (toolResultStart, toolResultEnd)
+            }
+            if (AppConfig.isDebugMode) print(red(startTag))
+            currentMessageBuilder.append(startTag)
+            wordBuffer.delete(0, firstTagIndex + startTag.length)
+            isInToolTag = true
+            currentToolTagEndMarker = Some(endMarker)
+            continueProcessingBuffer = true // Processed a tag, might be more
+          } else {
+            // No start tag found, process the rest (end of stream)
+            print(blue(wordBuffer.toString))
+            currentMessageBuilder.append(wordBuffer.toString)
+            wordBuffer.clear()
+          }
         }
-        currentMessageBuilder.append(wordBuffer.toString()) // Append whatever is left to history
-        wordBuffer.clear()
       }
 
       if (cancelStreaming) {
@@ -292,7 +366,7 @@ abstract class BaseChatAgent(prompt: String, model: String = AgentConfig.OpenAIM
     )
     addMessageToHistory(
       ChatCompletionMessageParam.ofUser(
-        createUserMessageBuilder(s"<@TOOL-RESULT>${toolResult}</@TOOL-RESULT>").build()
+        createUserMessageBuilder(s"<@TOOL_RESULT>${toolResult}</@TOOL_RESULT>").build()
       )
     )
 
