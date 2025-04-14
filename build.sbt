@@ -5,7 +5,7 @@ lazy val root = project
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "SuperCoder",
-    version := "0.1.3",
+    version := "0.1.4",
     scalaVersion := scala3Version,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "com.supercoder.build",
