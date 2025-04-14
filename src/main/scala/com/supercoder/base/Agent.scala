@@ -113,6 +113,8 @@ abstract class BaseChatAgent(prompt: String, model: String = AgentConfig.OpenAIM
       .builder()
       .addSystemMessage(AgentConfig.BasePrompt + prompt)
       .model(selectedModel)
+      .temperature(AppConfig.temperature)
+      .topP(AppConfig.top_p)
 
     // Add all messages from chat history
     chatHistory.foreach(params.addMessage)
